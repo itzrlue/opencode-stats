@@ -1,0 +1,70 @@
+{
+  "name": "opencode-stats-tui",
+  "version": "0.1.0",
+  "description": "Always-on usage, cost and tool-health stats for OpenCode's TUI — a live sidebar panel with cost deltas, token usage, sparklines and streaks.",
+  "license": "MIT",
+  "author": "opencode-stats contributors",
+  "type": "module",
+  "homepage": "https://github.com/itzrlue/opencode-stats#readme",
+  "bugs": {
+    "url": "https://github.com/itzrlue/opencode-stats/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itzrlue/opencode-stats.git"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "opencode-tui",
+    "plugin",
+    "tui",
+    "usage",
+    "stats",
+    "cost",
+    "spend",
+    "tokens",
+    "cache",
+    "observability"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "exports": {
+    "./tui": "./src/tui.tsx"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@opencode/plugin": "^2.2.7"
+  },
+  "devDependencies": {
+    "@opencode/theme": "^2.2.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.6.6",
+    "@opentui/solid": ">=0.6.6",
+    "solid-js": ">=1.9.0"
+  },
+  "devDependenciesMeta": {
+    "@opentui/core": {
+      "optional": true
+    },
+    "@opentui/solid": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}
