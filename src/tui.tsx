@@ -193,6 +193,10 @@ export default Plugin.define({
     })
 
     context.keymap.layer(() => ({
+      // global: stay reachable while the slash autocomplete (mode "autocomplete")
+      // or any dialog (mode "modal") is open — base-mode layers are filtered out there.
+      mode: "global",
+      enabled: () => true,
       commands: [
         {
           id: "opencode-stats.range",
