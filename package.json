@@ -1,6 +1,6 @@
 {
-  "name": "opencode-stats-tui",
-  "version": "0.1.0",
+  "name": "opencode-stats",
+  "version": "0.2.0",
   "description": "Always-on usage, cost and tool-health stats for OpenCode's TUI — a live sidebar panel with cost deltas, token usage, sparklines and streaks.",
   "license": "MIT",
   "author": "opencode-stats contributors",

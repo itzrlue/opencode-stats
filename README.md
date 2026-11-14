@@ -3,23 +3,24 @@
 Always-on usage, cost and latency stats for [OpenCode](https://opencode.ai)'s TUI — a live sidebar panel that keeps your spend, token usage and tool health one glance away.
 
 ```
-╭────────────────────────────╮
-│ ▼ Stats · 7d               │
-│ $1.23              +12.4%  │
+╭──────────────────────────────╮
+│ ▼ Stats · 7d                  │
+│ $1.23              +12.4%     │
 │ 1.5M tok · 42 steps · 3 sessions
-│ tools ████████░░░░░  93%   │
-│ activity ▁▂▃▄▅▆▇█▁▂▃▄▅▆    │
-│ 5d streak · 72% cache      │
-╰────────────────────────────╯
+│ tools ████████░░░░░  93%      │
+│ overall ─────────────────────│
+│ $123.45            89 sessions│
+│ 45.2M tok        top gpt-5.2 │
+│ 12d streak · 72% cache        │
+│ activity ▁▂▃▄▅▆▇█▁▂▃▄▅▆      │
+╰──────────────────────────────╯
 ```
 
 ## Features
 
-- **Cost at a glance** — headline spend for the selected range with a colored delta vs the previous period (green down, orange up)
-- **Usage breakdown** — tokens, steps and session count in one line
-- **Tool health bar** — segmented bar of succeeded / failed / unfinished tool calls with a success percentage and an error count when things go wrong
-- **Activity sparkline** — daily step volume for the range
-- **Streak & cache** — active-day streak and prompt-cache hit rate
+- **Range stats** — headline spend for the selected range with a colored delta vs the previous period (green down, orange up), tokens/steps/sessions, and a segmented tool-health bar (green/red/muted with success % and error count)
+- **Overall section** — lifetime totals: all-time spend, sessions opened, tokens used, plus your **top model** (most-used by step count), active-day streak and prompt-cache hit rate
+- **Activity sparkline** — all-time daily step volume
 - **Collapsible** — click the header to collapse the panel; the cost stays visible
 - **Range cycling** — `/stats` (or the command palette) cycles `24h → 7d → 30d → 90d → all`
 - **Live** — refreshes every 60 seconds and whenever a session execution succeeds
@@ -65,8 +66,8 @@ Ranges: `24h`, `7d`, `30d`, `90d`, `all`.
 
 The panel reads only the OpenCode server API through the connected client — no database access, no writes:
 
-- `experimental.session.stats` for cheap range totals (cost, tokens, steps, streak, cache hit, tool totals, daily activity)
-- Two calls per refresh (current range + previous range for the delta), so refreshes stay fast
+- `experimental.session.stats` twice per refresh: once for the selected range (with the previous-period call for the delta) and once all-time for the overall section — all `tools: "none"`/`"summary"` calls, so refreshes stay fast
+- Top model comes from the stats response's `models` array (highest step count, ties broken by cost)
 
 All aggregation and formatting live in pure, tested modules:
 
@@ -86,7 +87,7 @@ npm run typecheck   # tsc --noEmit
 npm test            # vitest run
 ```
 
-Tests cover the formatting layer (`test/format.test.ts`).
+Tests cover the model-picking/range logic and formatting layers (22 tests across `test/data.test.ts` and `test/format.test.ts`).
 
 ## Requirements
 

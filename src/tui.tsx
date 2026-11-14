@@ -2,15 +2,17 @@
 import { createSignal, Show } from "solid-js"
 import { Plugin } from "@opencode/plugin/tui"
 import { RANGES, loadSidebarSummary, totalTokens, type Range, type SidebarSummary } from "./data"
-import { delta, money, percent, segmentBar, sparkline, tokens, type Delta } from "./format"
+import { delta, money, percent, segmentBar, sparkline, tokens, truncate, type Delta } from "./format"
 
 const REFRESH_MS = 60_000
 const BAR_WIDTH = 12
 const SPARK_WIDTH = 20
+const MODEL_MAX = 16
 
 function StatsView(props: {
   context: Plugin.Context
   summary: () => SidebarSummary | undefined
+  overall: () => SidebarSummary | undefined
   range: () => Range
 }) {
   const [view, updateView] = props.context.storage.store("view", { initial: { open: true } })
@@ -50,6 +52,7 @@ function StatsView(props: {
         </text>
       </box>
 
+      {/* Range section: this period's spend and tool health. */}
       <Show when={view.open && props.summary()}>
         {(value) => {
           const current = value()
@@ -58,16 +61,6 @@ function StatsView(props: {
           const cells = segmentBar([tools.succeeded, tools.failed, tools.unfinished], BAR_WIDTH)
           const change = delta(current.cost, current.previous?.cost)
           const detail = `${tokens(totalTokens(current.tokens))} tok · ${current.steps} steps · ${current.sessions} session${current.sessions === 1 ? "" : "s"}`
-          const meta = [
-            current.streak > 0 ? `${current.streak}d streak` : undefined,
-            current.cacheHit >= 0.01 ? `${percent(current.cacheHit, 0)} cache` : undefined,
-          ]
-            .filter(Boolean)
-            .join(" · ")
-          const spark = sparkline(
-            current.activity.map((entry) => entry.steps),
-            SPARK_WIDTH,
-          )
 
           return (
             <box flexDirection="column">
@@ -98,15 +91,61 @@ function StatsView(props: {
                   </Show>
                 </box>
               </Show>
-              <Show when={current.activity.length > 0}>
-                <text fg={theme.text.faint} wrapMode="none" truncate minWidth={0}>
-                  activity{" "}
-                  <span style={{ fg: theme.text.muted }}>{spark}</span>
+            </box>
+          )
+        }}
+      </Show>
+
+      {/* Overall section: lifetime totals, top model, streak and activity. */}
+      <Show when={view.open && props.overall()}>
+        {(value) => {
+          const all = value()
+          const topLabel = all.topModel ? `top ${truncate(all.topModel.label, MODEL_MAX)}` : ""
+          const meta = [
+            `${all.streak}d streak`,
+            all.cacheHit >= 0.01 ? `${percent(all.cacheHit, 0)} cache` : undefined,
+          ]
+            .filter(Boolean)
+            .join(" · ")
+          const spark = sparkline(
+            all.activity.map((entry) => entry.steps),
+            SPARK_WIDTH,
+          )
+
+          return (
+            <box flexDirection="column">
+              <box flexDirection="row" gap={1}>
+                <text flexShrink={0} fg={theme.text.faint}>
+                  overall
                 </text>
-              </Show>
-              <Show when={meta}>
+                <text flexGrow={1} wrapMode="none" truncate minWidth={0} fg={theme.border.base}>
+                  {"─".repeat(40)}
+                </text>
+              </box>
+              <box flexDirection="row" gap={1}>
+                <text flexGrow={1} wrapMode="none" truncate minWidth={0} fg={theme.text.base}>
+                  <b>{money(all.cost)}</b>
+                </text>
+                <text flexShrink={0} fg={theme.text.muted}>
+                  {`${all.sessions} session${all.sessions === 1 ? "" : "s"}`}
+                </text>
+              </box>
+              <box flexDirection="row" gap={1}>
+                <text flexGrow={1} wrapMode="none" truncate minWidth={0} fg={theme.text.muted}>
+                  {`${tokens(totalTokens(all.tokens))} tok`}
+                </text>
+                {topLabel ? (
+                  <text flexShrink={0} wrapMode="none" truncate minWidth={0} fg={theme.text.faint}>
+                    {topLabel}
+                  </text>
+                ) : null}
+              </box>
+              <text fg={theme.text.faint} wrapMode="none" truncate minWidth={0}>
+                {meta}
+              </text>
+              <Show when={all.activity.length > 0}>
                 <text fg={theme.text.faint} wrapMode="none" truncate minWidth={0}>
-                  {meta}
+                  activity <span style={{ fg: theme.text.muted }}>{spark}</span>
                 </text>
               </Show>
             </box>
@@ -122,6 +161,7 @@ export default Plugin.define({
   setup(context) {
     const [range, setRange] = createSignal<Range>("7d")
     const [summary, setSummary] = createSignal<SidebarSummary | undefined>(undefined)
+    const [overall, setOverall] = createSignal<SidebarSummary | undefined>(undefined)
 
     let disposed = false
     let generation = 0
@@ -129,9 +169,15 @@ export default Plugin.define({
     const refresh = async () => {
       const current = ++generation
       try {
-        const next = await loadSidebarSummary(context.client, range())
+        const [next, lifetime] = await Promise.all([
+          loadSidebarSummary(context.client, range()),
+          loadSidebarSummary(context.client, "all"),
+        ])
         // A slower earlier request must not clobber a newer range's numbers.
-        if (!disposed && current === generation) setSummary(next)
+        if (!disposed && current === generation) {
+          setSummary(next)
+          setOverall(lifetime)
+        }
       } catch {
         // Stats are best-effort: keep the last good numbers on failure.
       }
@@ -143,7 +189,7 @@ export default Plugin.define({
 
     const removeSlot = context.ui.slot({
       append: "sidebar.content",
-      render: () => <StatsView context={context} summary={summary} range={range} />,
+      render: () => <StatsView context={context} summary={summary} overall={overall} range={range} />,
     })
 
     context.keymap.layer(() => ({

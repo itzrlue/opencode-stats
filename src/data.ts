@@ -206,6 +206,8 @@ export interface SidebarSummary {
   tools: { calls: number; succeeded: number; failed: number; unfinished: number }
   activity: Array<{ date: string; steps: number }>
   previous: { cost: number; steps: number } | undefined
+  /** Most-used model by step count, when the server reports model usage. */
+  topModel: { label: string; steps: number } | undefined
 }
 
 export interface CostSplit {
@@ -916,6 +918,28 @@ export async function loadDashboard(
   }
 }
 
+/**
+ * Picks the most-used model from stats model usage, by step count.
+ * Ties go to the higher-cost model; models without an id are skipped.
+ */
+export function pickTopModel(
+  models: ReadonlyArray<{ model?: { id?: string } | undefined; steps?: number; cost?: number }> | undefined,
+): { label: string; steps: number } | undefined {
+  if (!models || models.length === 0) return undefined
+  let best: { label: string; steps: number; cost: number } | undefined
+  for (const entry of models) {
+    const id = String(entry.model?.id ?? "")
+    if (!id) continue
+    const steps = safeNumber(entry.steps)
+    const cost = safeNumber(entry.cost)
+    if (!best || steps > best.steps || (steps === best.steps && cost > best.cost)) {
+      best = { label: id, steps, cost }
+    }
+  }
+  if (!best || best.steps <= 0) return undefined
+  return { label: best.label, steps: best.steps }
+}
+
 /** A cheap range summary for the sidebar: stats requests only, no messages. */
 export async function loadSidebarSummary(
   client: OpenCodeClient,
@@ -972,6 +996,7 @@ export async function loadSidebarSummary(
     },
     activity: (current?.activity ?? []).map((item) => ({ date: String(item.date), steps: safeNumber(item.steps) })),
     previous,
+    topModel: pickTopModel(current?.models),
   }
 }
 
